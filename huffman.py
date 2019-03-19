@@ -44,6 +44,8 @@ class decoder():
 
         bits = [int(bit) for bit in bits]
 
+        #print("decoder.__decoder: bits", bits)
+
         result = ""
 
         while bits:
@@ -108,6 +110,9 @@ class HuffmanTree():
 
     #bits is int list
     def path(self, bits, node=None):
+
+        #print(bits)
+        #print(node)
 
         node = node or self.root
 
