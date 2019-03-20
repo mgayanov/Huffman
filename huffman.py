@@ -1,38 +1,118 @@
+
+
+import binascii
+
+class utils():
+    @staticmethod
+    def bin_to_hex(string):
+        r = ["{}".format(hex(int(string[i:i+8],2))).replace("0x", "").zfill(2) for i in range(0, len(string), 8)]
+        r = "".join(r)
+        return r
+
+    @staticmethod
+    def hex_to_bin(string):
+        r = ["{}".format(bin(int(string[i:i + 2], 16))).replace("0b", "").zfill(8) for i in range(0, len(string), 2)]
+        r = "".join(r)
+        return r
+
+    @staticmethod
+    def str_to_bytes(string):
+        return [string[i:i + 2] for i in range(0, len(string), 2)]
+
 class encoder():
 
-    def __init__(self, string):
+    def __init__(self, in_file):
 
-        self.freq = self.__get_freq_tupple(string)
+        with open(in_file, 'rb') as f:
+            string = f.read().hex()
 
-        nodes = [Node(char=item[0], freq=item[1]) for item in self.freq]
+        string = utils.str_to_bytes(string)
 
-        self.__HTree = HuffmanTree(nodes)
-        
         self.__string = string
 
+        self.__freq = self.__get_freq_tupple(string)
+
+        nodes = [Node(char=item[0], freq=item[1]) for item in self.__freq]
+
+        self.__HTree = HuffmanTree(nodes)
+
         self.__encoded = self.__encode()
+
+        self.__encoded_length = len(self.__encoded)
+
+        l1 = len(self.__encoded)
+        self.__encoded = self.__zpad(self.__encoded)
+        l2 = len(self.__encoded)
+
+        print('L1', l1, 'L2', l2)
+
+
 
     def get_encoded(self):
         return self.__encoded
 
     def get_freq(self):
-        return self.freq
+        return self.__freq
+
+    def get_length(self):
+        return self.__encoded_length
 
     @staticmethod
     def __get_freq_tupple(s):
         return sorted([(c, s.count(c)) for c in set(s)], key=lambda x: x[1], reverse=True)
 
+    @staticmethod
+    def __zpad(string):
+        result = string
+        l = len(string)
+        if l % 8 != 0:
+            n = (l // 8 + 1) * 8
+            result = string.ljust(n, "0")
+        return result
+
     def __encode(self):
 
         tree = self.__HTree
 
-        result = [tree.get_target_bits(c) for c in self.__string]
+        result = []
+        tmp = []
+
+        for c in self.__string:
+            code = tree.get_target_bits(c)
+            result.append(code)
+            t = [c, chr(int(c, 16)), self.__string.count(c), code]
+            if t not in tmp:
+                tmp.append(t)
+            #print("c: {0}, freq: {1}, code: {2}".format(c, self.__string.count(c), code))
+
+        tmp = sorted(tmp, key=lambda x: x[2])
+        for e in tmp:
+            print(e)
+
+        #result = [tree.get_target_bits(c) for c in self.__string]
 
         return "".join(result)
 
+    def save(self, out_file):
+        content = utils.bin_to_hex(self.__encoded)
+        with open(out_file, 'wb') as f:
+            f.write(binascii.unhexlify(content))
+
+
+
 class decoder():
 
-    def __init__(self, freq, bits):
+    def __init__(self, freq, in_file, origin_length):
+
+        with open(in_file, 'rb') as f:
+            string = f.read().hex()
+
+        print("origin_length", origin_length)
+
+        bits = utils.hex_to_bin(string)[:origin_length]
+        print('bits L', len(bits))
+
+        self.__origin_length = origin_length
 
         nodes = [Node(char=item[0], freq=item[1]) for item in freq]
 
@@ -40,11 +120,11 @@ class decoder():
 
         self.__decoded = self.__decode(bits)
 
+        self.__decoded = self.__decoded[:origin_length]
+
     def __decode(self, bits):
 
         bits = [int(bit) for bit in bits]
-
-        #print("decoder.__decoder: bits", bits)
 
         result = ""
 
@@ -55,6 +135,11 @@ class decoder():
 
     def get_decoded(self):
         return self.__decoded
+
+    def save(self, out_file):
+        content = self.__decoded
+        with open(out_file, 'wb') as f:
+            f.write(binascii.unhexlify(content))
 
 
 class Node():
@@ -111,9 +196,6 @@ class HuffmanTree():
     #bits is int list
     def path(self, bits, node=None):
 
-        #print(bits)
-        #print(node)
-
         node = node or self.root
 
         # leaf found
@@ -127,24 +209,3 @@ class HuffmanTree():
 
         if next_step == 1 and node.right:
             return self.path(bits, node.right)
-
-'''
-string = "qwerty"
-H = encoder(string)
-
-freq = H.get_freq()
-encoded = H.get_encoded()
-print(encoded)
-
-decoded = decoder(freq, encoded).get_decoded()
-print(decoded)
-
-
-bits = H(string)
-
-print(bits)
-
-decoded = H.decode(bits)
-
-print(decoded)
-'''

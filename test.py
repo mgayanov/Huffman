@@ -29,8 +29,20 @@ class Test():
         r = "".join(r)
         return r
 
+origin = 'target.txt'
+compressed = '{}-c'.format(origin)
+uncompressed = '{}-u'.format(origin)
 
+encoder = huffman.encoder(origin)
+freq = encoder.get_freq()
+length = encoder.get_length()
 
+encoder.save(compressed)
+
+decoder = huffman.decoder(freq, compressed, length)
+decoder.save(uncompressed)
+
+'''
 test = Test("simple-test")
 
 hexunencoded = test.readfile("target")
@@ -72,7 +84,7 @@ test.writefile("tmp", hexencoded1)
 
 #####################
 
-'''
+
 
 hexencoded2 = test.readfile("tmp")
 
