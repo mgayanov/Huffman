@@ -1,6 +1,6 @@
 import huffman
 import binascii
-import time
+from time import time
 
 class Test():
 
@@ -29,7 +29,7 @@ class Test():
         r = "".join(r)
         return r
 
-origin = 'target.txt'
+origin = 'target1'
 compressed = '{}-c'.format(origin)
 uncompressed = '{}-u'.format(origin)
 
@@ -40,7 +40,7 @@ length = encoder.get_length()
 encoder.save(compressed)
 
 decoder = huffman.decoder(freq, compressed, length)
-decoder.save(uncompressed)
+#decoder.save(uncompressed)
 
 '''
 test = Test("simple-test")

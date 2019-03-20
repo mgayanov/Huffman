@@ -1,5 +1,5 @@
 
-
+from time import time
 import binascii
 
 class utils():
@@ -22,7 +22,7 @@ class utils():
 class encoder():
 
     def __init__(self, in_file):
-
+        t1 = time()
         with open(in_file, 'rb') as f:
             string = f.read().hex()
 
@@ -31,12 +31,19 @@ class encoder():
         self.__string = string
 
         self.__freq = self.__get_freq_tupple(string)
+        print("encoder freq part t:", time()-t1)
+
+        t2 = time()
 
         nodes = [Node(char=item[0], freq=item[1]) for item in self.__freq]
 
         self.__HTree = HuffmanTree(nodes)
+        print("encoder HTree part t:", time()-t2)
+
+        t3 = time()
 
         self.__encoded = self.__encode()
+        print("encoder encode part t:", time()-t3)
 
         self.__encoded_length = len(self.__encoded)
 
@@ -45,6 +52,8 @@ class encoder():
         l2 = len(self.__encoded)
 
         print('L1', l1, 'L2', l2)
+
+        print("encoder.__init__ t:", time()-t1)
 
 
 
@@ -76,18 +85,28 @@ class encoder():
 
         result = []
         tmp = []
+        table = {}
 
         for c in self.__string:
-            code = tree.get_target_bits(c)
-            result.append(code)
-            t = [c, chr(int(c, 16)), self.__string.count(c), code]
-            if t not in tmp:
-                tmp.append(t)
+
+            if c not in table.keys():
+                code = tree.get_target_bits(c)
+                table[c] = code
+
+            result.append(table[c])
+
+            #t1 = time()
+            #code = tree.get_target_bits(c)
+            #print("encoder.__encode: c {0}, time: {1}".format(c, time()-t1))
+            #result.append(code)
+            #t = [c, chr(int(c, 16)), self.__string.count(c), code]
+            #if t not in tmp:
+            #    tmp.append(t)
             #print("c: {0}, freq: {1}, code: {2}".format(c, self.__string.count(c), code))
 
-        tmp = sorted(tmp, key=lambda x: x[2])
-        for e in tmp:
-            print(e)
+        #tmp = sorted(tmp, key=lambda x: x[2])
+        #for e in tmp:
+        #    print(e)
 
         #result = [tree.get_target_bits(c) for c in self.__string]
 
@@ -103,7 +122,7 @@ class encoder():
 class decoder():
 
     def __init__(self, freq, in_file, origin_length):
-
+        t1 = time()
         with open(in_file, 'rb') as f:
             string = f.read().hex()
 
@@ -122,14 +141,42 @@ class decoder():
 
         self.__decoded = self.__decoded[:origin_length]
 
+        print("decoder.__init__ t:", time()-t1)
+
     def __decode(self, bits):
 
-        bits = [int(bit) for bit in bits]
+        bits = [bit for bit in bits]
 
         result = ""
 
+        cached = {}
+
         while bits:
-            result += self.__HTree.path(bits)
+
+            b = None
+
+            for candidate_bit in cached.keys():
+                candidate_bit_len = len(candidate_bit)
+                a = "".join(bits[:candidate_bit_len])
+                #print("candidate_bit: {0}, a: {1}".format(candidate_bit, a))
+
+                if a == candidate_bit:
+                    b = cached[candidate_bit]
+                    #print("+")
+
+            if b:
+                char = b
+            else:
+                char, bit = self.__HTree.path(bits)
+                cached[bit] = char
+
+            #t1 = time()
+
+            result += char
+            #print("decoder.__decode char: {0}, bit: {1}, t: {2}".format(char, bit, time()-t1))
+
+        #for k in cached.keys():
+        #    print("k: {0}, v: {1}".format(k, cached[k]))
 
         return result
 
@@ -194,18 +241,18 @@ class HuffmanTree():
         return None
 
     #bits is int list
-    def path(self, bits, node=None):
+    def path(self, bits, node=None, stored_steps=''):
 
         node = node or self.root
 
         # leaf found
         if not node.left and not node.right:
-            return node.char
+            return node.char, stored_steps
 
         next_step = bits.pop(0)
 
-        if next_step == 0 and node.left:
-            return self.path(bits, node.left)
+        if next_step == '0' and node.left:
+            return self.path(bits, node.left, stored_steps + '0')
 
-        if next_step == 1 and node.right:
-            return self.path(bits, node.right)
+        if next_step == '1' and node.right:
+            return self.path(bits, node.right, stored_steps + '1')
