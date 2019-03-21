@@ -40,7 +40,7 @@ length = encoder.get_length()
 encoder.save(compressed)
 
 decoder = huffman.decoder(freq, compressed, length)
-#decoder.save(uncompressed)
+decoder.save(uncompressed)
 
 '''
 test = Test("simple-test")

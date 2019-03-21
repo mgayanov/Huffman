@@ -145,35 +145,23 @@ class decoder():
 
     def __decode(self, bits):
 
-        bits = [bit for bit in bits]
+        #bits = [bit for bit in bits]
 
         result = ""
+        start = 0
+        counter = 0
+        N = len(bits)
 
-        cached = {}
+        while start < N-1:
+            t1 = time()
 
-        while bits:
-
-            b = None
-
-            for candidate_bit in cached.keys():
-                candidate_bit_len = len(candidate_bit)
-                a = "".join(bits[:candidate_bit_len])
-                #print("candidate_bit: {0}, a: {1}".format(candidate_bit, a))
-
-                if a == candidate_bit:
-                    b = cached[candidate_bit]
-                    #print("+")
-
-            if b:
-                char = b
-            else:
-                char, bit = self.__HTree.path(bits)
-                cached[bit] = char
-
-            #t1 = time()
+            char, a, b = self.__HTree.path(bits, start=start)
+            print(a, b)
+            start = a + b + 1
 
             result += char
-            #print("decoder.__decode char: {0}, bit: {1}, t: {2}".format(char, bit, time()-t1))
+
+            print("decoder.__decode char: {0}, bit: {1}, t: {2}".format(char, bits[a:a+b], time()-t1))
 
         #for k in cached.keys():
         #    print("k: {0}, v: {1}".format(k, cached[k]))
@@ -241,18 +229,20 @@ class HuffmanTree():
         return None
 
     #bits is int list
-    def path(self, bits, node=None, stored_steps=''):
+    def path(self, bits, node=None, start=0, counter=0):
 
         node = node or self.root
 
         # leaf found
         if not node.left and not node.right:
-            return node.char, stored_steps
+            return node.char, start, counter
 
-        next_step = bits.pop(0)
+        #next_step = bits.pop(0)
+        next_step = bits[start+counter]
+        counter += 1
 
         if next_step == '0' and node.left:
-            return self.path(bits, node.left, stored_steps + '0')
+            return self.path(bits, node.left, start, counter)
 
         if next_step == '1' and node.right:
-            return self.path(bits, node.right, stored_steps + '1')
+            return self.path(bits, node.right, start, counter)
