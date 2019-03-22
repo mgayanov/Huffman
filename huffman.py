@@ -1,248 +1,267 @@
-
+import collections
 from time import time
 import binascii
 
+#https://www.researchgate.net/publication/220114874_A_Memory-Efficient_and_Fast_Huffman_Decoding_Algorithm
+
 class utils():
-    @staticmethod
-    def bin_to_hex(string):
-        r = ["{}".format(hex(int(string[i:i+8],2))).replace("0x", "").zfill(2) for i in range(0, len(string), 8)]
-        r = "".join(r)
-        return r
+	@staticmethod
+	def bin_to_hex(string):
+		r = ["{}".format(hex(int(string[i:i+8],2))).replace("0x", "").zfill(2) for i in range(0, len(string), 8)]
+		r = "".join(r)
+		return r
 
-    @staticmethod
-    def hex_to_bin(string):
-        r = ["{}".format(bin(int(string[i:i + 2], 16))).replace("0b", "").zfill(8) for i in range(0, len(string), 2)]
-        r = "".join(r)
-        return r
+	@staticmethod
+	def hex_to_bin(string):
+		r = ["{}".format(bin(int(string[i:i + 2], 16))).replace("0b", "").zfill(8) for i in range(0, len(string), 2)]
+		r = "".join(r)
+		return r
 
-    @staticmethod
-    def str_to_bytes(string):
-        return [string[i:i + 2] for i in range(0, len(string), 2)]
+	@staticmethod
+	def str_to_bytes(string):
+		return [string[i:i + 2] for i in range(0, len(string), 2)]
 
 class encoder():
 
-    def __init__(self, in_file):
-        t1 = time()
-        with open(in_file, 'rb') as f:
-            string = f.read().hex()
+	def __init__(self, in_file):
+		t1 = time()
+		with open(in_file, 'rb') as f:
+			string = f.read().hex()
 
-        string = utils.str_to_bytes(string)
+		string = utils.str_to_bytes(string)
 
-        self.__string = string
+		self.__string = string
 
-        self.__freq = self.__get_freq_tupple(string)
-        print("encoder freq part t:", time()-t1)
+		self.__freq = self.__get_freq_tupple(string)
+		print("encoder freq part t:", time()-t1)
 
-        t2 = time()
+		for e in self.__freq:
+			print(e)
 
-        nodes = [Node(char=item[0], freq=item[1]) for item in self.__freq]
+		t2 = time()
 
-        self.__HTree = HuffmanTree(nodes)
-        print("encoder HTree part t:", time()-t2)
+		nodes = [Node(char=item[0], freq=item[1]) for item in self.__freq]
 
-        t3 = time()
+		self.__HTree = HuffmanTree(nodes)
+		print("encoder HTree part t:", time()-t2)
 
-        self.__encoded = self.__encode()
-        print("encoder encode part t:", time()-t3)
+		t3 = time()
 
-        self.__encoded_length = len(self.__encoded)
+		self.__encoded = self.__encode()
+		print("encoder encode part t:", time()-t3)
 
-        l1 = len(self.__encoded)
-        self.__encoded = self.__zpad(self.__encoded)
-        l2 = len(self.__encoded)
+		self.__encoded_length = len(self.__encoded)
 
-        print('L1', l1, 'L2', l2)
+		l1 = len(self.__encoded)
+		self.__encoded = self.__zpad(self.__encoded)
+		l2 = len(self.__encoded)
 
-        print("encoder.__init__ t:", time()-t1)
+		print('L1', l1, 'L2', l2)
+
+		print("encoder.__init__ t:", time()-t1)
 
 
 
-    def get_encoded(self):
-        return self.__encoded
+	def get_encoded(self):
+		return self.__encoded
 
-    def get_freq(self):
-        return self.__freq
+	def get_freq(self):
+		return self.__freq
 
-    def get_length(self):
-        return self.__encoded_length
+	def get_table(self):
+		return self.__table
 
-    @staticmethod
-    def __get_freq_tupple(s):
-        return sorted([(c, s.count(c)) for c in set(s)], key=lambda x: x[1], reverse=True)
+	def get_length(self):
+		return self.__encoded_length
 
-    @staticmethod
-    def __zpad(string):
-        result = string
-        l = len(string)
-        if l % 8 != 0:
-            n = (l // 8 + 1) * 8
-            result = string.ljust(n, "0")
-        return result
+	@staticmethod
+	def __get_freq_tupple(s):
+		return list(collections.Counter(s).items())
+		#return [(c, s.count(c)) for c in set(s)]
 
-    def __encode(self):
+	@staticmethod
+	def __zpad(string):
+		result = string
+		l = len(string)
+		if l % 8 != 0:
+			n = (l // 8 + 1) * 8
+			result = string.ljust(n, "0")
+		return result
 
-        tree = self.__HTree
+	def __encode(self):
 
-        result = []
-        tmp = []
-        table = {}
+		tree = self.__HTree
 
-        for c in self.__string:
+		result = []
+		tmp = []
+		table = {}
 
-            if c not in table.keys():
-                code = tree.get_target_bits(c)
-                table[c] = code
+		for c in self.__string:
 
-            result.append(table[c])
+			if c not in table.keys():
+				code = tree.get_target_bits(c)
+				table[c] = code
 
-            #t1 = time()
-            #code = tree.get_target_bits(c)
-            #print("encoder.__encode: c {0}, time: {1}".format(c, time()-t1))
-            #result.append(code)
-            #t = [c, chr(int(c, 16)), self.__string.count(c), code]
-            #if t not in tmp:
-            #    tmp.append(t)
-            #print("c: {0}, freq: {1}, code: {2}".format(c, self.__string.count(c), code))
+			result.append(table[c])
 
-        #tmp = sorted(tmp, key=lambda x: x[2])
-        #for e in tmp:
-        #    print(e)
+		self.__table = table
 
-        #result = [tree.get_target_bits(c) for c in self.__string]
+		return "".join(result)
 
-        return "".join(result)
-
-    def save(self, out_file):
-        content = utils.bin_to_hex(self.__encoded)
-        with open(out_file, 'wb') as f:
-            f.write(binascii.unhexlify(content))
+	def save(self, out_file):
+		content = utils.bin_to_hex(self.__encoded)
+		with open(out_file, 'wb') as f:
+			f.write(binascii.unhexlify(content))
 
 
 
 class decoder():
 
-    def __init__(self, freq, in_file, origin_length):
-        t1 = time()
-        with open(in_file, 'rb') as f:
-            string = f.read().hex()
+	def __init__(self, freq, in_file, origin_length, table):
+		t1 = time()
+		with open(in_file, 'rb') as f:
+			string = f.read().hex()
 
-        print("origin_length", origin_length)
+		v = list(table.values())
 
-        bits = utils.hex_to_bin(string)[:origin_length]
-        print('bits L', len(bits))
+		self.min_bit_code = len(min(v, key=len))
+		self.max_bit_code = len(max(v, key=len))
 
-        self.__origin_length = origin_length
+		self.table = table
 
-        nodes = [Node(char=item[0], freq=item[1]) for item in freq]
+		print("min_bit_code: {0}, max_bit_code: {1}".format(self.min_bit_code, self.max_bit_code))
+		print("origin_length", origin_length)
 
-        self.__HTree = HuffmanTree(nodes)
+		bits = utils.hex_to_bin(string)[:origin_length]
+		print('bits L', len(bits))
 
-        self.__decoded = self.__decode(bits)
+		self.__origin_length = origin_length
+		t2 = time()
+		nodes = [Node(char=item[0], freq=item[1]) for item in freq]
+		print("decoder.__init__ nodes t: {0}", time()-t2)
 
-        self.__decoded = self.__decoded[:origin_length]
+		t3 = time()
+		self.__HTree = HuffmanTree(nodes)
+		print("decoder.__init__ HTree t: {0}", time() - t3)
 
-        print("decoder.__init__ t:", time()-t1)
+		self.__decoded = self.__decode(bits)
 
-    def __decode(self, bits):
+		self.__decoded = self.__decoded[:origin_length]
 
-        #bits = [bit for bit in bits]
+		print("decoder.__init__ t:", time()-t1)
 
-        result = ""
-        start = 0
-        counter = 0
-        N = len(bits)
+	def __decode(self, bits):
 
-        while start < N-1:
-            t1 = time()
+		result = ""
+		start = 0
+		N = len(bits)
 
-            char, a, b = self.__HTree.path(bits, start=start)
-            print(a, b)
-            start = a + b + 1
+		while start < N-1:
+			#t1 = time()
 
-            result += char
+			char, init_index, counter = self.__HTree.path2(bits, start)
 
-            print("decoder.__decode char: {0}, bit: {1}, t: {2}".format(char, bits[a:a+b], time()-t1))
+			start = init_index + counter
 
-        #for k in cached.keys():
-        #    print("k: {0}, v: {1}".format(k, cached[k]))
+			result += char
 
-        return result
+			#print("decoder.__decode char: {0}, bit: {1}, t: {2}".format(char, bits[a:a+b], time()-t1))
 
-    def get_decoded(self):
-        return self.__decoded
+		return result
 
-    def save(self, out_file):
-        content = self.__decoded
-        with open(out_file, 'wb') as f:
-            f.write(binascii.unhexlify(content))
+	def get_decoded(self):
+		return self.__decoded
+
+	def save(self, out_file):
+		content = self.__decoded
+		with open(out_file, 'wb') as f:
+			f.write(binascii.unhexlify(content))
 
 
 class Node():
 
-    def __init__(self, char, freq, left=None, right=None):
-        self.char  = char
-        self.freq  = freq
-        self.left  = left
-        self.right = right
+	def __init__(self, char, freq, left=None, right=None):
+		self.char  = char
+		self.freq  = freq
+		self.left  = left
+		self.right = right
 
 class HuffmanTree():
 
-    def __init__(self, nodes_list):
+	def __init__(self, nodes_list):
 
-        if len(nodes_list) == 2:
-            left_node  = nodes_list[0]
-            right_node = nodes_list[1]
+		if len(nodes_list) == 2:
+			left_node  = nodes_list[0]
+			right_node = nodes_list[1]
 
-            self.root = Node(char=None, freq=None, left=left_node, right=right_node)
-            return
+			self.root = Node(char=None, freq=None, left=left_node, right=right_node)
+			return
 
-        nodes_list = sorted(nodes_list, key=lambda node: node.freq, reverse=True)
+		nodes_list = sorted(nodes_list, key=lambda node: node.freq, reverse=True)
 
-        min_freq_node1, min_freq_node2 = nodes_list.pop(), nodes_list.pop()
+		min_freq_node1, min_freq_node2 = nodes_list.pop(), nodes_list.pop()
 
-        new_node = Node(char=None, freq=min_freq_node1.freq + min_freq_node2.freq, left=min_freq_node2,
-                        right=min_freq_node1)
+		new_node = Node(char=None, freq=min_freq_node1.freq + min_freq_node2.freq, left=min_freq_node2,
+						right=min_freq_node1)
 
-        nodes_list.append(new_node)
+		nodes_list.append(new_node)
 
-        self.__init__(nodes_list)
+		self.__init__(nodes_list)
 
-    #bits is str
-    def get_target_bits(self, target, node=None, bits=""):
+	#bits is str
+	def get_target_bits(self, target, node=None, bits=""):
 
-        node = node or self.root
+		node = node or self.root
 
-        # leaf found
-        if not node.left and not node.right:
-            return bits if node.char == target else None
+		# leaf found
+		if not node.left and not node.right:
+			return bits if node.char == target else None
 
-        if node.left:
-            a = self.get_target_bits(target, node.left, bits + "0")
+		if node.left:
+			a = self.get_target_bits(target, node.left, bits + "0")
 
-            if a: return a
+			if a: return a
 
-        if node.right:
-            a = self.get_target_bits(target, node.right, bits + "1")
+		if node.right:
+			a = self.get_target_bits(target, node.right, bits + "1")
 
-            if a: return a
+			if a: return a
 
-        return None
+		return None
 
-    #bits is int list
-    def path(self, bits, node=None, start=0, counter=0):
+	#bits is int list
+	def path(self, bits, node=None, start=0, counter=0):
 
-        node = node or self.root
+		node = node or self.root
 
-        # leaf found
-        if not node.left and not node.right:
-            return node.char, start, counter
+		# leaf found
+		if not node.left and not node.right:
+			return node.char, start, counter
 
-        #next_step = bits.pop(0)
-        next_step = bits[start+counter]
-        counter += 1
+		#next_step = bits.pop(0)
+		next_step = bits[start + counter]
+		counter += 1
 
-        if next_step == '0' and node.left:
-            return self.path(bits, node.left, start, counter)
+		if next_step == '0':
+			return self.path(bits, node.left, start, counter)
 
-        if next_step == '1' and node.right:
-            return self.path(bits, node.right, start, counter)
+		if next_step == '1':
+			return self.path(bits, node.right, start, counter)
+
+	def path2(self, bits, start):
+
+		curr_node = self.root
+		counter = 0
+
+		while curr_node.left or curr_node.right:
+			next_step = bits[start + counter]
+
+			if next_step == '0':
+				curr_node = curr_node.left
+
+			if next_step == '1':
+				curr_node = curr_node.right
+
+			counter += 1
+
+		return curr_node.char, start, counter
