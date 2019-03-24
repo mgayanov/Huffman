@@ -3,6 +3,7 @@ import binascii
 from random import randint
 from time import time
 import itertools
+import collections
 
 class Test():
 
@@ -43,23 +44,82 @@ class Test():
 		r = "".join(r)
 		return r
 
-t = Test("sample-test")
 
-t.create_sample(15000000, "target11")
+def f4():
+	t = Test("sample-test")
 
-origin = 'target11'
-compressed = '{}-c'.format(origin)
-uncompressed = '{}-u'.format(origin)
+	#t.create_sample(15000000, "target11")
 
-encoder = huffman.encoder(origin)
-freq = encoder.get_freq()
-length = encoder.get_length()
-table = encoder.get_table()
+	origin = 'target4'
+	compressed = '{}-c'.format(origin)
+	uncompressed = '{}-u'.format(origin)
 
-for k in table.keys():
-	print("k: {0}, v: {1}".format(k, table[k]))
+	encoder = huffman.encoder(origin)
+	freq = encoder.get_freq()
+	length = encoder.get_length()
+	table = encoder.get_table()
+	max_bit_len = encoder.get_max_bit_len()
 
-encoder.save(compressed)
+	#for k in table.keys():
+	#	print("k: {0}, v: {1}".format(k, table[k]))
 
-decoder = huffman.decoder(freq, compressed, length, table)
-#decoder.save(uncompressed)
+	encoder.save(compressed)
+
+	#decoder = huffman.decoder(freq, compressed, length, table, max_bit_len)
+	#decoder.save(uncompressed)
+
+def f_encode_only(n):
+	origin = 'target{}'.format(n)
+	compressed = '{}-c'.format(origin)
+
+	encoder = huffman.encoder(origin)
+
+	encoder.save(compressed)
+
+def f_encode_decode(n):
+
+	origin = 'target{}'.format(n)
+	compressed = '{}-c'.format(origin)
+	uncompressed = '{}-u'.format(origin)
+
+	encoder = huffman.encoder(origin)
+	freq = encoder.get_freq()
+	length = encoder.get_length()
+	table = encoder.get_table()
+	max_bit_len = encoder.get_max_bit_len()
+
+	encoder.save(compressed)
+
+	decoder = huffman.decoder(freq, compressed, length, table, max_bit_len)
+	decoder.save(uncompressed)
+
+n = 11
+
+#f_encode_only(n)
+f_encode_decode(n)
+'''
+from bitstring import BitArray
+
+with open("target0", "rb") as f:
+	c = f.read().hex()
+
+binstring = ''
+t1 = time()
+
+r = BitArray(hex=c)
+print(r.bin)
+
+with open("target0", "rb") as f:
+	c = f.read()
+
+for e in c:
+	binstring += bin(e).replace("0b", "").zfill(8)
+
+print(time()-t1)
+
+print(binstring)
+
+print(len(binstring))
+
+#print(list(collections.Counter(c).items()))
+'''
