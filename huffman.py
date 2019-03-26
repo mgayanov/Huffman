@@ -1,7 +1,5 @@
 import collections
 from time import time
-import binascii
-import os
 from bitstring import BitArray
 
 #https://www.researchgate.net/publication/220114874_A_Memory-Efficient_and_Fast_Huffman_Decoding_Algorithm
@@ -14,7 +12,7 @@ class encoder():
 
 	def __init__(self, in_file):
 
-		t1 = time()
+		#t1 = time()
 
 		with open(in_file, 'rb') as f:
 			string = f.read()
@@ -33,7 +31,7 @@ class encoder():
 
 		self.__encoded = self.__zpad(self.__encoded)
 
-		print("encoder.__init__ t:", time()-t1)
+		#print("encoder.__init__ t:", time()-t1)
 
 	@staticmethod
 	def __make_freq_tupple(s):
@@ -102,7 +100,7 @@ class encoder():
 class decoder():
 
 	def __init__(self, in_file):
-		t1 = time()
+		#t1 = time()
 
 		self.__freq, self.__encoded_len_original, self.__encoded = self.__extract(in_file)
 
@@ -120,7 +118,7 @@ class decoder():
 
 		self.__decoded = self.__decode4(bits)
 
-		print("decoder.__init__ t:", time()-t1)
+		#print("decoder.__init__ t:", time()-t1)
 
 	def __extract(self, file):
 
@@ -235,8 +233,8 @@ class decoder():
 			sym = codes[code][2]
 			rest = codes[code][3]
 
-			n1 = int(code,2) << rest#int(code + ("0"*rest), 2)
-			n2 = (int(code,2) << rest) | ((1<<rest)-1)#int(code + ("1"*rest), 2)
+			n1 = int(code,2) << rest
+			n2 = (int(code,2) << rest) | ((1<<rest)-1)
 
 			for d in range(n1, n2+1):
 				mtable[d] = [sym, rest, bin(mask), code]

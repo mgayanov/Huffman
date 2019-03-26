@@ -1,96 +1,56 @@
 import huffman
-import binascii
 from random import randint
-from time import time
-import itertools
-import collections
 import hashlib
-
-class Test():
-
-	def __init__(self, desc):
-		self.desc = desc
-
-	def create_sample(self, bytes, samplefile):
-		alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz"
-		digits = "0123456789"
-		l = len(alphabet)
-		k = len(digits)
-		content = [alphabet[randint(0, l-1)] for _ in range(round(bytes*0.99))]
-		content += [digits[randint(0, k - 1)] for _ in range(round(bytes * 0.01))]
-		content = "".join(content)
-
-		with open(samplefile, 'w') as f:
-			f.write(content)
-
-	def readfile(self, filename):
-		with open(filename, "rb") as f:
-			hexstring = f.read().hex()
-			return hexstring
-
-	def writefile(self, filename, hexstring):
-		with open(filename, "wb") as f:
-			f.write(binascii.unhexlify(hexstring))
-
-	def str_to_bytes(self, string):
-		return [string[i:i + 2] for i in range(0, len(string), 2)]
-
-	def bin_to_hex(self, string):
-		r = ["{}".format(hex(int(string[i:i+8],2))).replace("0x", "").zfill(2) for i in range(0, len(string), 8)]
-		r = "".join(r)
-		return r
-
-	def hex_to_bin(self, string):
-		r = ["{}".format(bin(int(string[i:i + 2], 16))).replace("0b", "").zfill(8) for i in range(0, len(string), 2)]
-		r = "".join(r)
-		return r
+import os
 
 
+def create_sample(bytes_count, file):
+	content = bytearray()
+
+	for _ in range(bytes_count+1):
+		random_byte = randint(0, 255)
+		content.append(random_byte)
+
+	with open(file, 'wb') as f:
+		f.write(content)
 
 
-def f_encode_only(n):
-	origin = 'target{}'.format(n)
-	compressed = '{}-c'.format(origin)
+def assert_equals_hash(file1, file2):
+	file1_md5 = hashlib.md5()
+	file2_md5 = hashlib.md5()
 
-	encoder = huffman.encoder(origin)
+	with open(file1, "rb") as f1, open(file2, "rb") as f2:
+		file1_md5.update(f1.read())
+		file2_md5.update(f2.read())
 
-	encoder.save(compressed)
+	return file1_md5.hexdigest() == file2_md5.hexdigest()
 
-def f_decode_only(n):
-	origin = 'target{}'.format(n)
-	compressed = '{}-c'.format(origin)
-	uncompressed = '{}-u'.format(origin)
 
-	decoder = huffman.decoder(compressed)
-	decoder.save(uncompressed)
+def delete_sample(file):
+	os.remove(file)
 
-def f_encode_decode(n):
 
-	origin = 'target{}'.format(n)
-	compressed = '{}-c'.format(origin)
-	uncompressed = '{}-u'.format(origin)
+for _ in range(10):
 
-	origin_md5 = hashlib.md5()
+	original = "original"
+	compressed = "compressed"
+	uncompressed = "uncompressed"
 
-	with open(origin, "rb") as f:
-		origin_md5.update(f.read())
+	bytes_count = randint(0, 10**6)
 
-	encoder = huffman.encoder(origin)
+	create_sample(bytes_count, original)
 
+	encoder = huffman.encoder(original)
 	encoder.save(compressed)
 
 	decoder = huffman.decoder(compressed)
 	decoder.save(uncompressed)
 
-	uncompressed_md5 = hashlib.md5()
+	if not assert_equals_hash(original, uncompressed):
+		raise Exception
 
-	with open(uncompressed, "rb") as f:
-		uncompressed_md5.update(f.read())
+	delete_sample(original)
+	delete_sample(compressed)
+	delete_sample(uncompressed)
 
-	print(uncompressed_md5.hexdigest() == origin_md5.hexdigest())
-
-n = 11
-
-#f_encode_only(n)
-f_decode_only(n)
-#f_encode_decode(n)
+print("correct")
