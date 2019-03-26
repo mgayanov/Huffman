@@ -6,89 +6,41 @@ from bitstring import BitArray
 
 #https://www.researchgate.net/publication/220114874_A_Memory-Efficient_and_Fast_Huffman_Decoding_Algorithm
 
-class utils():
-	@staticmethod
-	def bin_to_hex(string):
-		r = ["{}".format(hex(int(string[i:i+8],2))).replace("0x", "").zfill(2) for i in range(0, len(string), 8)]
-		r = "".join(r)
-		return r
+BYTE_1 = 1
+BYTE_4 = 4
 
-	@staticmethod
-	def hex_to_bin(string):
-		r = ["{}".format(bin(int(string[i:i + 2], 16))).replace("0b", "").zfill(8) for i in range(0, len(string), 2)]
-		r = "".join(r)
-		return r
-
-	@staticmethod
-	def str_to_bytes(string):
-
-		s = bytes.fromhex(string)
-
-
-
-		return [string[i:i + 2] for i in range(0, len(string), 2)]
 
 class encoder():
 
 	def __init__(self, in_file):
+
 		t1 = time()
+
 		with open(in_file, 'rb') as f:
-			#string = f.read().hex()
 			string = f.read()
-
-		print("encoder.__init__ read data t:", time() - t1)
-
-		#string = utils.str_to_bytes(string)
-		print("encoder.__init__ prepare data t:", time() - t1)
 
 		self.__string = string
 
-		self.__freq = self.__get_freq_tupple(string)
-		#print("encoder freq part t:", time()-t1)
+		self.__freq = self.__make_freq_tupple(string)
 
-		#for e in self.__freq:
-		#	print(e)
-
-		#t2 = time()
-
-		nodes = [Node(char=item[0], freq=item[1]) for item in self.__freq]
+		nodes = self.__make_nodes()
 
 		self.__HTree = HuffmanTree(nodes)
-		#print("encoder HTree part t:", time()-t2)
-
-		#print(self.__HTree.get_leafs())
-
-		#t3 = time()
 
 		self.__encoded = self.__encode()
-		#print("encoder encode part t:", time()-t3)
 
-		#self.__fill_w_c()
-
-		self.__encoded_length = len(self.__encoded)
+		self.__encoded_len_original = len(self.__encoded)
 
 		self.__encoded = self.__zpad(self.__encoded)
 
 		print("encoder.__init__ t:", time()-t1)
 
-
-
-	def get_encoded(self):
-		return self.__encoded
-
-	def get_freq(self):
-		return self.__freq
-
-	def get_table(self):
-		return self.__table
-
-	def get_length(self):
-		return self.__encoded_length
-
 	@staticmethod
-	def __get_freq_tupple(s):
+	def __make_freq_tupple(s):
 		return list(collections.Counter(s).items())
-		#return [(c, s.count(c)) for c in set(s)]
+
+	def __make_nodes(self):
+		return [Node(char=item[0], freq=item[1]) for item in self.__freq]
 
 	@staticmethod
 	def __zpad(string):
@@ -104,7 +56,6 @@ class encoder():
 		tree = self.__HTree
 
 		result = []
-		tmp = []
 		table = {}
 
 		for c in self.__string:
@@ -115,92 +66,103 @@ class encoder():
 
 			result.append(table[c]["code"])
 
-		self.__table = table
-
 		return "".join(result)
 
-	def get_max_bit_len(self):
+	def __freqs_to_bytes(self):
 
-		v = [e["code"] for e in list(self.__table.values())]
+		freqs_b = b""
 
-		# self.min_bit_code = len(min(v, key=len))
-		self.max_bit_code = len(max(v, key=len))
+		for e in self.__freq:
+			freqs_b += e[0].to_bytes(length=BYTE_1, byteorder="big")
+			freqs_b += e[1].to_bytes(length=BYTE_4, byteorder="big")
 
-		return self.max_bit_code
+		freqs_bytes_count_b = len(freqs_b).to_bytes(length=BYTE_4, byteorder="big")
 
-	def __fill_w_c(self):
+		return freqs_b, freqs_bytes_count_b
 
-		v = [e["code"] for e in list(self.__table.values())]
+	def __original_len_to_byte(self):
+		return self.__encoded_len_original.to_bytes(length=BYTE_4, byteorder="big")
 
-		max_bit_code = len(max(v, key=len))
+	def __encoded_to_bytes(self):
+		return BitArray(bin=self.__encoded).bytes
 
-		height = max_bit_code
+	def save(self, file):
 
-		for c in self.__table.keys():
-			l = len(self.__table[c]["code"])
-			self.__table[c]["w"] = 2 ** (height - l)
+		freqs_b, freqs_bytes_count_b = self.__freqs_to_bytes()
 
-		chars = self.__HTree.get_leafs()
+		original_len_b = self.__original_len_to_byte()
 
-		count_0 = self.__table[chars[0]]["w"]
-		self.__table[chars[0]]["count"] = count_0
+		encoded_b = self.__encoded_to_bytes()
 
-		for i in range(1, len(chars)):
-			count = self.__table[chars[i-1]]["count"] + self.__table[chars[i]]["w"]
-			self.__table[chars[i]]["count"] = count
+		content = freqs_bytes_count_b + freqs_b + original_len_b + encoded_b
 
-
-	def save(self, out_file):
-		content = utils.bin_to_hex(self.__encoded)
-		with open(out_file, 'wb') as f:
-			f.write(binascii.unhexlify(content))
-
-
+		with open(file, 'wb') as f:
+			f.write(content)
 
 class decoder():
 
-	def __init__(self, freq, in_file, origin_length, table, max_bit_len):
+	def __init__(self, in_file):
 		t1 = time()
-		with open(in_file, 'rb') as f:
-			string = f.read().hex()
 
-		print("decoder.__init__ read data t:", time() - t1)
+		self.__freq, self.__encoded_len_original, self.__encoded = self.__extract(in_file)
 
-		#v = [e["code"] for e in list(table.values())]
+		nodes = self.__make_nodes()
 
-		#self.min_bit_code = len(min(v, key=len))
-		#self.max_bit_code = len(max(v, key=len))
-		#self.max_bit = max(v, key=len)
-
-		self.max_bit_code = max_bit_len
-
-		self.table = table
-
-		#print("min_bit_code: {0}, max_bit_code: {1}".format(self.min_bit_code, self.max_bit_code))
-		#print("origin_length", origin_length)
-
-		#bits = utils.hex_to_bin(string)[:origin_length]
-		bits = BitArray(hex=string).bin[:origin_length]
-		print("decoder.__init__ prepare data t:", time() - t1)
-		#print('bits L', len(bits))
-
-		self.__origin_length = origin_length
-		#t2 = time()
-		nodes = [Node(char=item[0], freq=item[1]) for item in freq]
-		#print("decoder.__init__ nodes t: {0}", time()-t2)
-
-		#t3 = time()
 		self.__HTree = HuffmanTree(nodes)
-		#print("decoder.__init__ HTree t: {0}", time() - t3)
-		#t4 = time()
+
+		self.__table = self.__make_table()
+
+		self.__max_bit_len = self.__get_max_bit_len()
+
+		self.__mtable = self.__make_masked_table()
+
+		bits = BitArray(hex=self.__encoded).bin[:self.__encoded_len_original]
 
 		self.__decoded = self.__decode4(bits)
 
-		#print("decoder.__init__ decode t: ", time() - t4)
-
-		#self.__decoded = self.__decoded[:origin_length]
-
 		print("decoder.__init__ t:", time()-t1)
+
+	def __extract(self, file):
+
+		with open(file, "rb") as f:
+			content = f.read()
+
+		freqs_bytes_count = int.from_bytes(content[0:0+BYTE_4], byteorder="big")
+
+		freqs_bytes = content[0+BYTE_4:0+BYTE_4+freqs_bytes_count]
+
+		freqs = []
+
+		for pos in range(0, freqs_bytes_count, 5):
+			char = int.from_bytes(freqs_bytes[pos:pos+BYTE_1], byteorder="big")
+			freq = int.from_bytes(freqs_bytes[pos+BYTE_1:pos+BYTE_1+BYTE_4], byteorder="big")
+			freqs.append((char, freq))
+
+		encoded_len_original = int.from_bytes(content[BYTE_4+freqs_bytes_count:BYTE_4+freqs_bytes_count+BYTE_4], byteorder="big")
+
+		encoded = content[BYTE_4+freqs_bytes_count+BYTE_4:].hex()
+
+		return freqs, encoded_len_original, encoded
+
+	def __make_nodes(self):
+		return [Node(char=item[0], freq=item[1]) for item in self.__freq]
+
+	def __make_table(self):
+		table = {}
+		tree = self.__HTree
+
+		chars = [e[0] for e in self.__freq]
+
+		for char in chars:
+			code = tree.get_target_bits(char)
+			table[char] = {"code": code}
+
+		return table
+
+	def __get_max_bit_len(self):
+		v = [e["code"] for e in list(self.__table.values())]
+		max_bit_len = len(max(v, key=len))
+		return max_bit_len
 
 	def __decode(self, bits):
 
@@ -208,8 +170,7 @@ class decoder():
 		start = 0
 		N = len(bits)
 
-		while start < N-1:
-			#t1 = time()
+		while start < N:
 
 			char, init_index, counter = self.__HTree.path2(bits, start)
 
@@ -217,213 +178,75 @@ class decoder():
 
 			result.append(char)
 
-			#print("decoder.__decode char: {0}, bit: {1}, t: {2}".format(char, bits[a:a+b], time()-t1))
-
-		return result
-
-	def __decode2(self, bits):
-
-		start = 0
-		result = ""
-
-		while start < len(bits):
-
-			for bit_length in range(self.min_bit_code, self.max_bit_code+1, 1):
-
-				curr_bit = bits[start:start+bit_length]
-
-				char = self.__HTree.path3(curr_bit)
-
-				if char:
-					result += char
-					start += bit_length
-					break
-
-		return result
-
-	def __decode3(self, bits):
-
-		start = 0
-		result = ""
-		N = self.min_bit_code
-		M = self.max_bit_code
-
-		c_w = [[k, self.table[k]["code"], self.table[k]["count"], self.table[k]["w"]] for k in self.table.keys()]
-
-		lengths = []
-
-		for e in c_w:
-			l = len(e[1])
-			if l not in lengths:
-				lengths.append(l)
-
-		counts_w = {}
-
-		for e in c_w:
-			counts_w[e[2]] = [e[3], e[0]]
-
-		print(counts_w)
-		counts = list(counts_w.keys())
-
-		cached = {}
-
-		while start < len(bits):
-
-			old_start = start
-
-			for bit_length in lengths:
-
-				curr_bit = bits[start:start+bit_length]
-
-				if curr_bit in cached.keys():
-					result += cached[curr_bit]
-					start += bit_length
-					break
-
-				t = (int(curr_bit, 2) + 1) * 2**(M-bit_length)
-				w = 2**(M-bit_length)
-
-				if t in counts and counts_w[t][0] == w:
-					result += counts_w[t][1]
-					start += bit_length
-
-					cached[curr_bit] = counts_w[t][1]
-
-					break
-
 		return result
 
 	def __decode4(self, bits):
 
-		#t1 = time()
-		self.__make_masked_table()
-		#print("__decode4 make mtable t: {0}".format(time()-t1))
-		table = self.mtable
-		#print("__decode4 mtable len: {0}".format(len(table)))
-
-		result = ""
+		mtable = self.__mtable
 		bits_len = len(bits)
-		max_bit_len = self.max_bit_code
-
-		#for k in table.keys():
-		#	print(k, table[k])
+		max_bit_len = self.__max_bit_len
 
 		start = 0
 
 		bandwidth = bits_len - max_bit_len + 1
 
-		#print("bandwidth: {0}".format(bandwidth))
-		#t1 = time()
-
-		#print(bits)
-
 		result = bytearray()
 
 		while start < bandwidth:
-
-			#t1 = time()
 			bit = bits[start:start+max_bit_len]
-			t = table[int(bit,2)]
+			t = mtable[int(bit,2)]
 			char = t[0]
 			rest = t[1]
 
-			#result += char
 			result.append(char)
 			start += max_bit_len - rest
-			#print("__decode4 t per op: {0}".format(time()-t1))
 
-			#print("bit: {0}, char: {1}, rest: {2}, new_start: {3}, if: {4}".format(bit, char, rest, start, start < bandwidth))
-
-		#print("__decode4 main loop t:", time()-t1)
-
-		#t1 = time()
 		additional = self.__decode(bits[start:])
 
 		for e in additional:
 			result.append(e)
 
-		#print("__decode4 second loop t:", time() - t1)
-		print("res len ", len(result))
-
 		return result
 
 	def __make_masked_table(self):
 
-		table = self.table
+		table = self.__table
 
-		self.max_bit_code += 0
-
-		max_bit_len = self.max_bit_code
-		#max_bit = self.max_bit
-
-		#print("max_bit_len", max_bit_len)
+		max_bit_len = self.__max_bit_len
 
 		codes = {}
-		#t1 = time()
 		for sym in list(table.keys()):
 
-			code = int(table[sym]["code"], 2)
-			mask = int('1'*len(table[sym]["code"]), 2) << (max_bit_len - len(table[sym]["code"]))
-			rest = max_bit_len - len(table[sym]["code"])
-			#print("code: {0}, delta: {1}, mask: {2}, l: {3}".format(table[sym]["code"], max_bit_len - len(table[sym]["code"]), mask, len(table[sym]["code"])))
-			codes[table[sym]["code"]] = [mask, bin(mask), sym, rest]
-			#print(table[sym]["code"], codes[table[sym]["code"]])
-		#print("codes table t: {0}".format(time()-t1))
-		M = int('1'*max_bit_len, 2)
+			sym_len = len(table[sym]["code"])
+
+			rest = max_bit_len - sym_len
+
+			mask = (1 << sym_len) << rest
+
+			code = table[sym]["code"]
+
+			codes[code] = [mask, bin(mask), sym, rest]
 
 		mtable = {}
-		#mtable = [0]*(M+1)
-
-		#t1 = time()
 		codes_keys = list(codes.keys())
-		#print("M: {0}, codes_len: {1}".format(M, len(codes)))
 
 		for code in codes_keys:
 			mask = codes[code][0]
 			sym = codes[code][2]
 			rest = codes[code][3]
 
-			n1 = int(code + '0'*rest, 2)
-			n2 = int(code + '1' * rest, 2)
+			n1 = int(code,2) << rest#int(code + ("0"*rest), 2)
+			n2 = (int(code,2) << rest) | ((1<<rest)-1)#int(code + ("1"*rest), 2)
 
 			for d in range(n1, n2+1):
 				mtable[d] = [sym, rest, bin(mask), code]
 
-		'''
-		for d in range(M+1):
-
-			for code in codes_keys:
-				mask = codes[code][0]
-				sym = codes[code][2]
-				rest = codes[code][3]
-
-
-
-				if (d & mask) >> rest == int(code, 2):
-					print("d: {0}, mask: {1}, code: {2}, sym: {3}".format(bin(d), mask, d & mask, sym))
-					#mtable[bin(d).replace("0b", "").rjust(max_bit_len, "0")] = [sym, rest]
-					mtable[d] = [sym, rest, bin(mask), code]
-					break
-					#print(bin(d), sym)
-		'''
-		#print("mtable t: {0}".format(time() - t1))
-		#for k in mtable.keys():
-		#	print(k, mtable[k])
-
-		#print(mtable)
-
-		self.mtable = mtable
-
-
-	def get_decoded(self):
-		return self.__decoded
+		return mtable
 
 	def save(self, out_file):
 		content = self.__decoded
-		#print(content)
 		with open(out_file, 'wb') as f:
 			f.write(content)
-			#f.write(binascii.unhexlify(content))
 
 
 class Node():
