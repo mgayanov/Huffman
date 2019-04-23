@@ -30,20 +30,20 @@ def delete_sample(file):
 	os.remove(file)
 
 
-for _ in range(10):
+for _ in range(1):
 
 	original = "original"
 	compressed = "compressed"
 	uncompressed = "uncompressed"
 
-	bytes_count = randint(0, 10**6)
+	bytes_count = randint(10**7, 10**7)
 
 	create_sample(bytes_count, original)
 
-	encoder = huffman.encoder(original)
+	encoder = huffman.Encoder(original)
 	encoder.save(compressed)
 
-	decoder = huffman.decoder(compressed)
+	decoder = huffman.Decoder(compressed)
 	decoder.save(uncompressed)
 
 	if not assert_equals_hash(original, uncompressed):

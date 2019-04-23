@@ -1,27 +1,28 @@
 import collections
 from time import time
-from bitstring import BitArray
+from binascii import hexlify
 
 #https://www.researchgate.net/publication/220114874_A_Memory-Efficient_and_Fast_Huffman_Decoding_Algorithm
 
 BYTE_1 = 1
 BYTE_4 = 4
 
-
-class encoder():
+class Encoder(object):
 
 	def __init__(self, in_file):
 
-		#t1 = time()
+		t1 = time()
 
 		with open(in_file, 'rb') as f:
-			string = f.read()
+			string_b = f.read()
 
-		self.__string = string
+		self.__string_b = string_b
 
-		self.__freq = self.__make_freq_tupple(string)
+		freq = Encoder.__make_freq_tupple(string_b)
 
-		nodes = self.__make_nodes()
+		self.__freq = freq
+
+		nodes = Encoder.__make_nodes(freq)
 
 		self.__HTree = HuffmanTree(nodes)
 
@@ -29,16 +30,18 @@ class encoder():
 
 		self.__encoded_len_original = len(self.__encoded)
 
+		#len should be power of 8
 		self.__encoded = self.__zpad(self.__encoded)
 
-		#print("encoder.__init__ t:", time()-t1)
+		print("Encoder.__init__ t:", time()-t1)
 
 	@staticmethod
 	def __make_freq_tupple(s):
 		return list(collections.Counter(s).items())
 
-	def __make_nodes(self):
-		return [Node(char=item[0], freq=item[1]) for item in self.__freq]
+	@staticmethod
+	def __make_nodes(freq):
+		return [Node(char=item[0], freq=item[1]) for item in freq]
 
 	@staticmethod
 	def __zpad(string):
@@ -54,15 +57,15 @@ class encoder():
 		tree = self.__HTree
 
 		result = []
-		table = {}
+		cache = {}
 
-		for c in self.__string:
+		for b in self.__string_b:
 
-			if c not in table.keys():
-				code = tree.get_target_bits(c)
-				table[c] = {"code": code}
+			if b not in cache.keys():
+				bits = tree.get_target_bits(b)
+				cache[b] = {"code": bits}
 
-			result.append(table[c]["code"])
+			result.append(cache[b]["code"])
 
 		return "".join(result)
 
@@ -82,7 +85,10 @@ class encoder():
 		return self.__encoded_len_original.to_bytes(length=BYTE_4, byteorder="big")
 
 	def __encoded_to_bytes(self):
-		return BitArray(bin=self.__encoded).bytes
+		encoded = self.__encoded
+		l = len(encoded)
+		bytes = [int(encoded[i:i+8],2) for i in range(0, l, 8)]
+		return bytearray(bytes)
 
 	def save(self, file):
 
@@ -97,10 +103,11 @@ class encoder():
 		with open(file, 'wb') as f:
 			f.write(content)
 
-class decoder():
+class Decoder(object):
 
 	def __init__(self, in_file):
-		#t1 = time()
+		t1 = time()
+
 
 		self.__freq, self.__encoded_len_original, self.__encoded = self.__extract(in_file)
 
@@ -114,11 +121,12 @@ class decoder():
 
 		self.__mtable = self.__make_masked_table()
 
-		bits = BitArray(hex=self.__encoded).bin[:self.__encoded_len_original]
+		a = bytearray.fromhex(self.__encoded)
+		bits = "{0:0{1}b}".format(int(hexlify(a), 16), 8*len(a))[:self.__encoded_len_original]
 
 		self.__decoded = self.__decode4(bits)
 
-		#print("decoder.__init__ t:", time()-t1)
+		print("Decoder.__init__ t:", time()-t1)
 
 	def __extract(self, file):
 
