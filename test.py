@@ -2,13 +2,18 @@ import huffman
 from random import randint
 import hashlib
 import os
+from time import time
 
 
 def create_sample(bytes_count, file):
 	content = bytearray()
 
-	for _ in range(bytes_count+1):
-		random_byte = randint(0, 255)
+	for _ in range(int(bytes_count*0.8)):
+		random_byte = randint(0, 100)
+		content.append(random_byte)
+
+	for _ in range(int(bytes_count*0.2)):
+		random_byte = randint(200, 255)
 		content.append(random_byte)
 
 	with open(file, 'wb') as f:
@@ -32,25 +37,28 @@ def delete_sample(file):
 
 for _ in range(1):
 
-	original = "original"
+	t1 = time()
+
+	original = "enwik8.txt"
 	compressed = "compressed"
 	uncompressed = "uncompressed"
 
-	bytes_count = randint(10**7, 10**7)
+	#bytes_count = randint(20**6, 20**6)
 
-	create_sample(bytes_count, original)
+	#create_sample(bytes_count, original)
+	#print("create_sample", time()-t1)
 
 	encoder = huffman.Encoder(original)
 	encoder.save(compressed)
 
 	decoder = huffman.Decoder(compressed)
-	decoder.save(uncompressed)
+	#decoder.save(uncompressed)
 
-	if not assert_equals_hash(original, uncompressed):
-		raise Exception
+	#if not assert_equals_hash(original, uncompressed):
+	#	raise Exception
 
-	delete_sample(original)
-	delete_sample(compressed)
-	delete_sample(uncompressed)
+	#delete_sample(original)
+	#delete_sample(compressed)
+	#delete_sample(uncompressed)
 
 print("correct")

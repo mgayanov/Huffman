@@ -26,7 +26,11 @@ class Encoder(object):
 
 		self.__HTree = HuffmanTree(nodes)
 
+		self.__table = self.__make_table()
+
 		self.__encoded = self.__encode()
+
+		print("Encoder.__encode() t:", time() - t1)
 
 		self.__encoded_len_original = len(self.__encoded)
 
@@ -52,22 +56,41 @@ class Encoder(object):
 			result = string.ljust(n, "0")
 		return result
 
-	def __encode(self):
-
+	def __make_table(self):
+		table = {}
 		tree = self.__HTree
 
-		result = []
-		cache = {}
+		bs = [e[0] for e in self.__freq]
+
+		for b in bs:
+			bits = tree.get_target_bits(b)
+			table[b] = bits
+
+		return table
+
+	def __encode(self):
+
+		t1 = time()
+
+		table = self.__table
+
+		l = len(self.__string_b)
+
+		result = ['0'] * l
+		pos = 0
 
 		for b in self.__string_b:
+			result[pos] = table[b]
+			pos += 1
+			#result.append(table[b])
 
-			if b not in cache.keys():
-				bits = tree.get_target_bits(b)
-				cache[b] = {"code": bits}
+		print("__encode loop t:", time()-t1)
 
-			result.append(cache[b]["code"])
+		result = "".join(result)
 
-		return "".join(result)
+		print("__encode result t:", time() - t1)
+
+		return result
 
 	def __freqs_to_bytes(self):
 
@@ -108,7 +131,6 @@ class Decoder(object):
 	def __init__(self, in_file):
 		t1 = time()
 
-
 		self.__freq, self.__encoded_len_original, self.__encoded = self.__extract(in_file)
 
 		nodes = self.__make_nodes()
@@ -116,10 +138,12 @@ class Decoder(object):
 		self.__HTree = HuffmanTree(nodes)
 
 		self.__table = self.__make_table()
+		print("Decoder.__make_table t:", time() - t1)
 
 		self.__max_bit_len = self.__get_max_bit_len()
 
 		self.__mtable = self.__make_masked_table()
+		print("Decoder.__make_masked_table t:", time() - t1)
 
 		a = bytearray.fromhex(self.__encoded)
 		bits = "{0:0{1}b}".format(int(hexlify(a), 16), 8*len(a))[:self.__encoded_len_original]
@@ -187,7 +211,7 @@ class Decoder(object):
 		return result
 
 	def __decode4(self, bits):
-
+		t1 = time()
 		mtable = self.__mtable
 		bits_len = len(bits)
 		max_bit_len = self.__max_bit_len
@@ -200,17 +224,19 @@ class Decoder(object):
 
 		while start < bandwidth:
 			bit = bits[start:start+max_bit_len]
-			t = mtable[int(bit,2)]
-			char = t[0]
-			rest = t[1]
+			#t = mtable[int(bit,2)]
+			t = mtable[bit]
+			char = t["sym"]#t[0]
+			rest = t["rest"]
 
 			result.append(char)
 			start += max_bit_len - rest
 
 		additional = self.__decode(bits[start:])
 
-		for e in additional:
-			result.append(e)
+		print("__decode4 loop t:", time()-t1)
+
+		result.extend(additional)
 
 		return result
 
@@ -245,7 +271,9 @@ class Decoder(object):
 			n2 = (int(code,2) << rest) | ((1<<rest)-1)
 
 			for d in range(n1, n2+1):
-				mtable[d] = [sym, rest, bin(mask), code]
+
+				k = "{0:0{1}b}".format(d, max_bit_len)
+				mtable[k] = {"sym":sym, "rest":rest}#[sym, rest, bin(mask), code]
 
 		return mtable
 
